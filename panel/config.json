@@ -1,0 +1,9 @@
+{
+  "port": 8080,
+  "core": "127.0.0.1:9090",
+  "proxy": "127.0.0.1:7890",
+  "lanPort": 7891,
+  "mihomoDir": "../mihomo",
+  "mihomoExe": "mihomo-windows-amd64.exe",
+  "sessionHours": 12
+}

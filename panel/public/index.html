@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>代理控制台</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<!-- ─────────────────────────── 登录 ─────────────────────────── -->
+<section class="login-screen" id="login-screen">
+  <div class="login-deco" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+  </div>
+
+  <div class="login-wrap">
+    <div class="brand-line">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="6" cy="12" r="2.4" fill="currentColor"/>
+          <circle cx="18" cy="6" r="2.4" fill="currentColor"/>
+          <circle cx="18" cy="18" r="2.4" fill="currentColor"/>
+          <path d="M8.2 10.9 15.8 7M8.2 13.1 15.8 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="wordmark">Mihomo <em>Console</em></span>
+    </div>
+
+    <h1>连接到你的代理</h1>
+    <p class="lede">输入内核地址与账号，进入本机控制台。</p>
+
+    <form id="login-form" autocomplete="on" novalidate>
+      <div class="field">
+        <label for="core-host">服务器</label>
+        <div class="split">
+          <input id="core-host" name="host" value="127.0.0.1" spellcheck="false" autocomplete="off" aria-label="内核地址">
+          <span class="colon">:</span>
+          <input id="core-port" name="port" value="9090" class="port" inputmode="numeric" autocomplete="off" aria-label="内核端口">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="user">账号</label>
+        <input id="user" name="user" autocomplete="username" spellcheck="false" placeholder="账号">
+      </div>
+
+      <div class="field">
+        <label for="pass">密码</label>
+        <input id="pass" name="pass" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <p class="form-error" id="login-error" hidden></p>
+
+      <button class="btn primary block" id="login-submit" type="submit">
+        <span>连接</span>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+
+    <p class="footnote">服务器填主机上的内核地址，默认 <code>127.0.0.1:9090</code>（在别的设备上也填这个）· 同一网络用 <code>本机IP:8080</code> 打开本页</p>
+  </div>
+</section>
+
+<!-- ─────────────────────────── 控制台 ─────────────────────────── -->
+<div class="app" id="app-screen" hidden>
+  <aside class="sidebar">
+    <div class="brand-line compact">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="6" cy="12" r="2.4" fill="currentColor"/>
+          <circle cx="18" cy="6" r="2.4" fill="currentColor"/>
+          <circle cx="18" cy="18" r="2.4" fill="currentColor"/>
+          <path d="M8.2 10.9 15.8 7M8.2 13.1 15.8 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="wordmark">控制台</span>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button class="nav-item admin-only is-active" data-view="overview">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-4H4v4Zm10-13h6V4h-6v3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span>概览</span>
+      </button>
+      <button class="nav-item admin-only" data-view="nodes">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="6" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="m8 11 8-4M8 13l8 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>节点</span>
+      </button>
+      <button class="nav-item admin-only" data-view="conns">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 17V7m5 10V4m5 13v-7m5 7V9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span>连接</span>
+      </button>
+      <button class="nav-item admin-only" data-view="lan">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 9.5a13 13 0 0 1 18 0M6.5 13a8 8 0 0 1 11 0M10 16.4a3 3 0 0 1 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="19.4" r="1.2" fill="currentColor"/></svg>
+        <span>局域网</span>
+      </button>
+      <button class="nav-item admin-only" data-view="logs">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.5" stroke="currentColor" stroke-width="1.6"/><path d="m7.5 10 2.5 2.4-2.5 2.4M12.5 15h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>日志</span>
+      </button>
+      <button class="nav-item admin-only" data-view="users">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6S13.9 16 14.5 19M16 8.2a2.8 2.8 0 1 1 0 5.6M17.5 14.6c2 .4 3.2 1.9 3.6 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>账号</span>
+      </button>
+      <button class="nav-item user-only" data-view="me">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.6"/><path d="M5 19.5c.8-3.4 3.5-5.2 7-5.2s6.2 1.8 7 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>我的账号</span>
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <span class="dot" id="side-dot"></span>
+      <div class="side-foot-text">
+        <strong id="side-status">已连接</strong>
+        <span id="side-core">127.0.0.1:9090</span>
+      </div>
+      <button class="icon-btn" id="logout" title="退出登录" aria-label="退出登录">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8M17 8.5 20.5 12 17 15.5M20 12h-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h2 id="view-title">概览</h2>
+        <p id="view-sub">当前节点、流量与出口状态</p>
+      </div>
+      <div class="top-actions">
+        <span class="conn-pill admin-only" id="top-conns">0 条连接</span>
+        <button class="btn ghost sm admin-only" id="refresh-all">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4.5V9h-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          刷新
+        </button>
+        <button class="icon-btn mobile-only" id="logout-mobile" title="退出登录" aria-label="退出登录">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8M17 8.5 20.5 12 17 15.5M20 12h-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="views" id="views">
+
+      <!-- 概览 -->
+      <section class="view is-active" data-view="overview">
+        <div class="card proxy-card admin-only">
+          <div class="proxy-state">
+            <span class="dot" id="px-dot"></span>
+            <div class="proxy-state-text">
+              <strong id="px-title">代理运行中</strong>
+              <span id="px-sub">系统代理已开启 · 127.0.0.1:7890</span>
+            </div>
+          </div>
+          <button class="switch is-on" id="px-switch" role="switch" aria-checked="true" aria-label="代理开关">
+            <span></span>
+          </button>
+        </div>
+
+        <div class="hero card">
+          <div class="hero-main">
+            <span class="eyebrow">当前节点</span>
+            <h3 class="hero-node" id="ov-node">—</h3>
+            <div class="hero-meta">
+              <span class="pill" id="ov-type">—</span>
+              <span class="pill ghost" id="ov-group">MAIN</span>
+            </div>
+            <div class="chips" id="ov-chips"></div>
+          </div>
+          <div class="hero-side">
+            <div class="latency" id="ov-latency">
+              <span class="num">--</span><span class="unit">ms</span>
+            </div>
+            <button class="btn ghost sm" id="ov-test">测速</button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat card">
+            <span class="stat-label">下行</span>
+            <strong class="stat-value" id="st-down">0 B/s</strong>
+            <svg class="spark" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true">
+              <path id="spark-area" class="spark-area" d=""/>
+              <path id="spark-line" class="spark-line" d=""/>
+            </svg>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">上行</span>
+            <strong class="stat-value" id="st-up">0 B/s</strong>
+            <span class="stat-sub" id="st-up-total">累计 —</span>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">活动连接</span>
+            <strong class="stat-value" id="st-conns">0</strong>
+            <span class="stat-sub" id="st-conns-sub">—</span>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">总流量</span>
+            <strong class="stat-value" id="st-total">0 B</strong>
+            <span class="stat-sub">本次运行</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <h4>出口</h4>
+              <button class="btn ghost xs" id="ov-exit-refresh">刷新</button>
+            </div>
+            <div class="exit">
+              <div class="exit-ip" id="exit-ip">—</div>
+              <div class="exit-geo" id="exit-geo">查询中…</div>
+            </div>
+            <div class="exit-grid">
+              <div><span>地区</span><b id="exit-region">—</b></div>
+              <div><span>运营商</span><b id="exit-isp">—</b></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h4>运行状态</h4></div>
+            <dl class="kv">
+              <div><dt>内核</dt><dd id="ov-version">—</dd></div>
+              <div><dt>模式</dt><dd id="ov-mode">—</dd></div>
+              <div><dt>规则</dt><dd id="ov-rules">—</dd></div>
+              <div><dt>节点</dt><dd id="ov-count">—</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- 节点 -->
+      <section class="view" data-view="nodes">
+        <div class="toolbar card">
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="node-search" placeholder="搜索节点、地区或协议" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="toolbar-actions">
+            <button class="btn ghost sm" id="node-auto">自动选择</button>
+            <button class="btn ghost sm" id="node-test">测试延迟</button>
+          </div>
+        </div>
+
+        <div class="card list-card">
+          <div class="list-head">
+            <span id="node-count">节点</span>
+            <span>延迟</span>
+          </div>
+          <div class="node-list" id="node-list"></div>
+        </div>
+      </section>
+
+      <!-- 连接 -->
+      <section class="view" data-view="conns">
+        <div class="stats stats-3">
+          <div class="stat card">
+            <span class="stat-label">下行速度</span>
+            <strong class="stat-value" id="cn-down">0 B/s</strong>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">上行速度</span>
+            <strong class="stat-value" id="cn-up">0 B/s</strong>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">活动连接</span>
+            <strong class="stat-value" id="cn-count">0</strong>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>主机</th>
+                <th>规则</th>
+                <th>链路</th>
+                <th class="num">下行</th>
+                <th class="num">上行</th>
+                <th aria-label="操作"></th>
+              </tr>
+            </thead>
+            <tbody id="conn-body"></tbody>
+          </table>
+          <p class="empty" id="conn-empty">还没有活动连接</p>
+        </div>
+      </section>
+
+      <!-- 局域网 -->
+      <section class="view" data-view="lan">
+        <div class="card lan-hero">
+          <span class="eyebrow">局域网访问</span>
+          <h3>同一网络下，打开这个地址</h3>
+          <div class="copy-row big">
+            <code id="lan-url">—</code>
+            <button class="btn primary sm" data-copy="lan-url">复制</button>
+          </div>
+          <p class="muted">手机、平板、其他电脑，用浏览器直接打开即可，无需安装。</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h4>可用地址</h4></div>
+            <ul class="addr-list" id="lan-addrs"></ul>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h4>把代理本身也分享出去</h4></div>
+            <p class="muted small">其他设备的代理设置里填：</p>
+            <div class="copy-row">
+              <code id="lan-proxy">—</code>
+              <button class="btn ghost xs" data-copy="lan-proxy">复制</button>
+            </div>
+            <p class="muted small">账号 <code id="lan-user">—</code>，密码与本控制台相同。</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h4>放行防火墙</h4>
+            <span class="badge" id="fw-badge">检测中</span>
+          </div>
+          <p class="muted small">Windows 默认拦截来自其他设备的访问。右键以管理员身份运行下面这个文件，一次即可：</p>
+          <div class="copy-row">
+            <code>proxy\panel\allow-panel-firewall.bat</code>
+            <button class="btn ghost xs" data-copy-text="allow-panel-firewall.bat">复制文件名</button>
+          </div>
+          <ol class="steps">
+            <li>管理员运行后会自动放行 <code>8080</code>（本控制台）和 <code>7891</code>（代理）。</li>
+            <li>确认路由器没有开启「AP 隔离 / 客户端隔离」。</li>
+            <li>其他设备打开上面的地址，用同一账号登录。</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 日志 -->
+      <section class="view" data-view="logs">
+        <div class="card log-card">
+          <div class="card-head">
+            <h4>内核日志</h4>
+            <div class="card-actions">
+              <button class="btn ghost xs" id="log-pause">暂停</button>
+              <button class="btn ghost xs" id="log-clear">清空</button>
+            </div>
+          </div>
+          <pre class="log" id="log"></pre>
+        </div>
+      </section>
+
+      <!-- 账号管理（管理员） -->
+      <section class="view" data-view="users">
+        <div class="card">
+          <div class="card-head"><h4>新建子账号</h4></div>
+          <p class="muted small">子账号只能用代理、看自己的信息、改自己的密码；不能切节点、看连接、管理别人。</p>
+          <form id="user-form" class="user-form">
+            <div class="field">
+              <label for="nu-name">用户名</label>
+              <input id="nu-name" placeholder="例如 zhangsan" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="field">
+              <label for="nu-pass">密码</label>
+              <div class="split">
+                <input id="nu-pass" placeholder="留空自动生成" autocomplete="off" spellcheck="false">
+                <button type="button" class="btn ghost sm" id="nu-gen">生成</button>
+              </div>
+            </div>
+            <button class="btn primary" type="submit">创建子账号</button>
+          </form>
+          <div class="cred-box" id="nu-result" hidden>
+            <span class="cred-label">新账号</span>
+            <code id="nu-cred"></code>
+            <button class="btn ghost xs" id="nu-copy">复制</button>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <div class="card-head">
+            <h4>账号列表</h4>
+            <span class="muted small" id="user-count"></span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>角色</th>
+                <th>密码</th>
+                <th class="num">创建时间</th>
+                <th aria-label="操作"></th>
+              </tr>
+            </thead>
+            <tbody id="user-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h4>修改我的密码</h4></div>
+          <form id="self-pass-form" class="user-form">
+            <div class="field"><label for="sp-cur">当前密码</label><input id="sp-cur" type="password" autocomplete="current-password"></div>
+            <div class="field"><label for="sp-new">新密码</label><input id="sp-new" type="password" autocomplete="new-password"></div>
+            <div class="field"><label for="sp-new2">确认新密码</label><input id="sp-new2" type="password" autocomplete="new-password"></div>
+            <button class="btn ghost" type="submit">更新密码</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 我的账号（子账号） -->
+      <section class="view" data-view="me">
+        <div class="card me-hero">
+          <h3 id="me-name">—</h3>
+          <div class="me-grid">
+            <div><span>代理地址</span><b id="me-proxy">—</b></div>
+            <div><span>端口</span><b id="me-port">—</b></div>
+            <div><span>角色</span><b id="me-role">—</b></div>
+          </div>
+          <div class="copy-row me-copy">
+            <code id="me-cred">—</code>
+            <button class="btn primary sm" data-copy="me-cred">复制连接信息</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h4>修改密码</h4></div>
+            <form id="me-pass-form" class="user-form">
+              <div class="field"><label for="mp-cur">当前密码</label><input id="mp-cur" type="password" autocomplete="current-password"></div>
+              <div class="field"><label for="mp-new">新密码</label><input id="mp-new" type="password" autocomplete="new-password"></div>
+              <div class="field"><label for="mp-new2">确认新密码</label><input id="mp-new2" type="password" autocomplete="new-password"></div>
+              <button class="btn primary" type="submit">保存</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h4>怎么连</h4></div>
+            <ol class="steps">
+              <li>设备和主机连同一个 Wi-Fi。</li>
+              <li>系统代理填上面的地址和端口。</li>
+              <li>弹窗里输入你的账号和密码。</li>
+              <li>手机：Wi-Fi → 手动代理 → 填地址和端口。</li>
+            </ol>
+            <p class="muted small">代理强制鉴权，只有管理员下发的账号能连。</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
