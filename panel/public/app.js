@@ -870,7 +870,7 @@ function renderUsers() {
     badge.textContent = u.role === 'admin' ? '管理员' : '子账号';
     role.appendChild(badge);
 
-    const pass = td(u.pass);
+    const pass = td(u.hasPassword ? '已设置' : '—');
     pass.className = 'mono';
 
     const created = td(new Date(u.created).toLocaleDateString('zh-CN'));

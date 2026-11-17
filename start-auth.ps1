@@ -8,17 +8,10 @@ $root      = Split-Path -Parent $MyInvocation.MyCommand.Path
 $mihomoDir = Join-Path $root 'mihomo'
 $exe       = Join-Path $mihomoDir 'mihomo-windows-amd64.exe'
 
-# 管理员账号从控制台的 users.json 读取，不把密码写死在脚本里
+# 账号已改为哈希存储，脚本不再校验密码；管理入口是网页控制台
+$SkipLogin = $true
 $USER      = ''
 $PASS      = ''
-$usersFile = Join-Path $root 'panel\users.json'
-if (Test-Path $usersFile) {
-    $admin = (Get-Content $usersFile -Raw -Encoding UTF8 | ConvertFrom-Json).users |
-             Where-Object { $_.role -eq 'admin' } | Select-Object -First 1
-    if ($admin) { $USER = $admin.username; $PASS = $admin.pass }
-}
-# 没有 users.json 时不弹登录框，直接启动（账号由控制台管理）
-if (-not $PASS) { $SkipLogin = $true }
 
 function Show-Box($text, $title, $icon) {
     if ($SkipLogin) { Write-Host "[$title] $text"; return }

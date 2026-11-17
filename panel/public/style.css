@@ -989,6 +989,15 @@ body[data-role="admin"] .user-only { display: none !important; }
 .me-grid b { font-family: var(--mono); font-size: 13px; font-weight: 500; }
 .me-copy { margin-top: 18px; }
 
+.dl-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.dl-hint { margin-top: 14px; }
+.dl-hint a {
+  color: var(--accent-2);
+  text-decoration: none;
+  border-bottom: 1px solid #E4D3C9;
+}
+.dl-hint a:hover { border-bottom-color: var(--accent); }
+
 /* ─────────────────────────── 响应式 ─────────────────────────── */
 
 @media (max-width: 1080px) {

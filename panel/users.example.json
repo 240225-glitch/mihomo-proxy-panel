@@ -1,10 +1,12 @@
 {
+  "version": 2,
   "users": [
     {
       "username": "admin",
-      "pass": "change-me-please",
       "role": "admin",
-      "created": 0
+      "created": 0,
+      "hash": "scrypt$16384$8$1$<salt-base64>$<hash-base64>",
+      "proxy": "v1.<iv>.<tag>.<ciphertext>"
     }
   ]
 }

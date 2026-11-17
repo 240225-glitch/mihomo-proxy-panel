@@ -1,5 +1,6 @@
 # 运行数据 / 密钥 —— 不要提交
 panel/users.json
+panel/.secret.key
 panel/.session-secret
 panel/.lan-ok
 
