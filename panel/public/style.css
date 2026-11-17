@@ -914,6 +914,10 @@ body[data-role="admin"] .user-only { display: none !important; }
 .switch.is-on span { transform: translateX(22px); }
 .switch:disabled { opacity: .55; cursor: default; }
 
+.switch.sm { width: 40px; height: 24px; }
+.switch.sm span { width: 16px; height: 16px; }
+.switch.sm.is-on span { transform: translateX(16px); }
+
 /* ─────────────────────────── 账号 ─────────────────────────── */
 
 .user-form {

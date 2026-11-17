@@ -384,7 +384,7 @@
               <tr>
                 <th>用户名</th>
                 <th>角色</th>
-                <th>密码</th>
+                <th>状态</th>
                 <th class="num">创建时间</th>
                 <th aria-label="操作"></th>
               </tr>
@@ -406,32 +406,79 @@
 
       <!-- 我的账号（子账号） -->
       <section class="view" data-view="me">
-        <div class="card me-hero">
-          <h3 id="me-name">—</h3>
-          <div class="me-grid">
-            <div><span>代理地址</span><b id="me-proxy">—</b></div>
-            <div><span>端口</span><b id="me-port">—</b></div>
-            <div><span>角色</span><b id="me-role">—</b></div>
+        <div class="card proxy-card">
+          <div class="proxy-state">
+            <span class="dot" id="me-dot"></span>
+            <div class="proxy-state-text">
+              <strong id="me-state">代理已开启</strong>
+              <span id="me-state-sub">—</span>
+            </div>
           </div>
-          <div class="copy-row me-copy">
-            <code id="me-cred">—</code>
-            <button class="btn primary sm" data-copy="me-cred">复制连接信息</button>
+          <button class="switch is-on" id="me-switch" role="switch" aria-checked="true" aria-label="我的代理开关">
+            <span></span>
+          </button>
+        </div>
+
+        <div class="stats stats-3">
+          <div class="stat card">
+            <span class="stat-label">活动连接</span>
+            <strong class="stat-value" id="me-conns">0</strong>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">下行</span>
+            <strong class="stat-value" id="me-down">0 B</strong>
+          </div>
+          <div class="stat card">
+            <span class="stat-label">上行</span>
+            <strong class="stat-value" id="me-up">0 B</strong>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h4>下载代理配置</h4></div>
-          <p class="muted small">配置里已经带上了你的账号密码，导入客户端就能用。别把文件发给别人。</p>
-          <div class="dl-grid">
-            <a class="btn primary sm" href="/api/me/client/clash.yaml" download>Clash / mihomo 配置</a>
-            <a class="btn ghost sm" href="/api/me/client/windows.bat" download>Windows 一键设置</a>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <h4>测速</h4>
+              <button class="btn ghost xs" id="me-speed">开始测速</button>
+            </div>
+            <div class="exit">
+              <div class="exit-ip" id="me-speed-value">—</div>
+              <div class="exit-geo" id="me-speed-sub">约 5 秒，走当前节点</div>
+            </div>
           </div>
-          <p class="muted small dl-hint">
-            客户端下载：
-            <a href="https://github.com/clash-verge-rev/clash-verge-rev/releases" target="_blank" rel="noreferrer">Clash Verge Rev</a> ·
-            <a href="https://github.com/mihomo-party-org/mihomo-party/releases" target="_blank" rel="noreferrer">mihomo Party</a> ·
-            <a href="https://github.com/MetaCubeX/ClashMetaForAndroid/releases" target="_blank" rel="noreferrer">ClashMetaForAndroid</a>
-          </p>
+
+          <div class="card">
+            <div class="card-head"><h4>下载代理</h4></div>
+            <p class="muted small">配置里带你的账号密码，导入客户端直接用，不会再弹登录框。</p>
+            <div class="dl-grid">
+              <a class="btn primary sm" href="/api/me/client/clash.yaml" download>Clash / mihomo 配置</a>
+            </div>
+            <p class="muted small dl-hint">
+              客户端：
+              <a href="https://github.com/clash-verge-rev/clash-verge-rev/releases" target="_blank" rel="noreferrer">Clash Verge Rev</a> ·
+              <a href="https://github.com/mihomo-party-org/mihomo-party/releases" target="_blank" rel="noreferrer">mihomo Party</a> ·
+              <a href="https://github.com/MetaCubeX/ClashMetaForAndroid/releases" target="_blank" rel="noreferrer">ClashMetaForAndroid</a>
+            </p>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <div class="card-head">
+            <h4>我的连接</h4>
+            <span class="muted small" id="me-conn-count">0 条</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>主机</th>
+                <th>规则</th>
+                <th>链路</th>
+                <th class="num">下行</th>
+                <th class="num">上行</th>
+              </tr>
+            </thead>
+            <tbody id="me-conn-body"></tbody>
+          </table>
+          <p class="empty" id="me-conn-empty">暂时没有经过代理的连接</p>
         </div>
 
         <div class="grid-2">
@@ -446,14 +493,14 @@
           </div>
 
           <div class="card">
-            <div class="card-head"><h4>怎么连</h4></div>
+            <div class="card-head"><h4>怎么用</h4></div>
             <ol class="steps">
-              <li>设备和主机连同一个 Wi-Fi。</li>
-              <li>系统代理填上面的地址和端口。</li>
-              <li>弹窗里输入你的账号和密码。</li>
-              <li>手机：Wi-Fi → 手动代理 → 填地址和端口。</li>
+              <li>点上面的「Clash / mihomo 配置」下载。</li>
+              <li>导入 Clash Verge / mihomo Party / ClashMetaForAndroid。</li>
+              <li>在客户端里点「连接」，不用再设置系统代理。</li>
+              <li>这个页面的开关控制你的账号能不能连，关掉后客户端会断开。</li>
             </ol>
-            <p class="muted small">代理强制鉴权，只有管理员下发的账号能连。</p>
+            <p class="muted small">配置里已经写好账号密码，全程不会弹登录框。</p>
           </div>
         </div>
       </section>

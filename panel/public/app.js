@@ -25,6 +25,7 @@ const state = {
   online: true,
   proxy: { online: false, systemProxy: false, active: false, proxy: '', lanPort: 7891 },
   users: [],
+  me: null,
   timers: {},
   sockets: {},
   logPaused: false,
@@ -180,6 +181,9 @@ function boot() {
   loadMe();
   if (state.role !== 'admin') {
     setView('me');
+    state.timers.me = setInterval(() => {
+      if (state.view === 'me') loadMeConns();
+    }, 2500);
     return;
   }
 
@@ -825,16 +829,129 @@ async function loadMe() {
     const r = await fetch('/api/me');
     if (!r.ok) return;
     const d = await r.json();
-    $('#me-name').textContent = d.user;
-    $('#me-proxy').textContent = (d.proxy.address || '').split(':')[0] || '—';
-    $('#me-port').textContent = d.proxy.port || '—';
-    $('#me-role').textContent = d.role === 'admin' ? '管理员' : '子账号';
-
-    const el = $('#me-cred');
-    el.textContent = `${d.proxy.address} · ${d.user}`;
-    el.dataset.copy = `代理地址：${d.proxy.address}\n账号：${d.user}\n密码：你设置的那个`;
+    state.me = d;
+    const on = !!d.enabled;
+    const locked = d.disabledBy === 'admin';
+    $('#me-state').textContent = on ? '代理已开启' : locked ? '管理员已停用' : '代理已停用';
+    $('#me-state-sub').textContent = locked
+      ? '联系管理员恢复'
+      : `${d.proxy.address} · ${d.user}`;
+    $('#me-dot').classList.toggle('is-off', !on);
+    const sw = $('#me-switch');
+    sw.classList.toggle('is-on', on);
+    sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    sw.disabled = locked;
+    sw.title = locked ? '管理员已停用，不能自行开启' : '';
   } catch { /* ignore */ }
 }
+
+async function loadMeConns() {
+  if (state.role === 'admin') return;
+  try {
+    const r = await fetch('/api/me/connections');
+    if (!r.ok) return;
+    const d = await r.json();
+    $('#me-conns').textContent = d.count;
+    $('#me-down').textContent = fmtBytes(d.down);
+    $('#me-up').textContent = fmtBytes(d.up);
+    renderMeConns(d.connections || []);
+  } catch { /* ignore */ }
+}
+
+function renderMeConns(list) {
+  const body = $('#me-conn-body');
+  const empty = $('#me-conn-empty');
+  $('#me-conn-count').textContent = `${list.length} 条`;
+
+  if (!list.length) {
+    body.textContent = '';
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+
+  const frag = document.createDocumentFragment();
+  for (const c of list.slice(0, 120)) {
+    const m = c.metadata || {};
+    const tr = document.createElement('tr');
+
+    const host = document.createElement('td');
+    host.className = 'host';
+    host.textContent = m.host || m.destinationIP || '—';
+    host.title = `${m.host || ''} ${m.destinationIP || ''}:${m.destinationPort || ''}`.trim();
+
+    const rule = document.createElement('td');
+    rule.className = 'rule';
+    rule.textContent = c.rule || '—';
+
+    const chain = document.createElement('td');
+    chain.className = 'chain';
+    chain.textContent = (c.chains || []).join(' → ') || '—';
+
+    const down = document.createElement('td');
+    down.className = 'num';
+    down.textContent = fmtBytes(c.download);
+
+    const up = document.createElement('td');
+    up.className = 'num';
+    up.textContent = fmtBytes(c.upload);
+
+    tr.append(host, rule, chain, down, up);
+    frag.appendChild(tr);
+  }
+
+  body.textContent = '';
+  body.appendChild(frag);
+}
+
+$('#me-switch').addEventListener('click', async () => {
+  const sw = $('#me-switch');
+  if (sw.disabled) return;
+  const want = !sw.classList.contains('is-on');
+  sw.disabled = true;
+
+  try {
+    const r = await fetch('/api/me/enabled', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: want })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '操作失败');
+    if (state.me) state.me.disabledBy = d.disabledBy || '';
+    sw.classList.toggle('is-on', d.enabled);
+    sw.setAttribute('aria-checked', d.enabled ? 'true' : 'false');
+    $('#me-dot').classList.toggle('is-off', !d.enabled);
+    $('#me-state').textContent = d.enabled ? '代理已开启' : '代理已停用';
+    toast(d.enabled ? '已开启，客户端可以连接' : '已停用，客户端会断开');
+  } catch (e) {
+    toast(e.message);
+    loadMe();
+  } finally {
+    sw.disabled = false;
+  }
+});
+
+$('#me-speed').addEventListener('click', async () => {
+  const btn = $('#me-speed');
+  btn.disabled = true;
+  btn.textContent = '测速中…';
+  $('#me-speed-value').textContent = '—';
+  $('#me-speed-sub').textContent = '正在下载测试文件…';
+
+  try {
+    const d = await fetch('/api/me/speedtest', { method: 'POST' }).then((r) => r.json());
+    if (d.error) throw new Error(d.error);
+    $('#me-speed-value').textContent = `${d.mbps} Mbps`;
+    $('#me-speed-sub').textContent = `${d.mb} MB / ${d.seconds}s · 约 ${(d.mbps / 8).toFixed(1)} MB/s`;
+  } catch (e) {
+    $('#me-speed-value').textContent = '失败';
+    $('#me-speed-sub').textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始测速';
+  }
+});
 
 function td(text) {
   const el = document.createElement('td');
@@ -870,8 +987,15 @@ function renderUsers() {
     badge.textContent = u.role === 'admin' ? '管理员' : '子账号';
     role.appendChild(badge);
 
-    const pass = td(u.hasPassword ? '已设置' : '—');
-    pass.className = 'mono';
+    const status = document.createElement('td');
+    const sw = document.createElement('button');
+    sw.className = 'switch sm' + (u.enabled ? ' is-on' : '');
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-checked', u.enabled ? 'true' : 'false');
+    sw.title = u.enabled ? '点击停用' : '点击启用';
+    sw.innerHTML = '<span></span>';
+    sw.addEventListener('click', () => toggleUser(u.username, !u.enabled));
+    status.appendChild(sw);
 
     const created = td(new Date(u.created).toLocaleDateString('zh-CN'));
     created.className = 'num';
@@ -891,8 +1015,24 @@ function renderUsers() {
     del.addEventListener('click', () => deleteUser(u.username));
 
     act.append(reset, del);
-    tr.append(name, role, pass, created, act);
+    tr.append(name, role, status, created, act);
     body.appendChild(tr);
+  }
+}
+
+async function toggleUser(name, enabled) {
+  try {
+    const r = await fetch(`/api/users/${encodeURIComponent(name)}/enabled`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '操作失败');
+    await loadUsers();
+    toast(enabled ? `${name} 已开启` : `${name} 已停用`);
+  } catch (e) {
+    toast(e.message);
   }
 }
 
@@ -1032,7 +1172,10 @@ function setView(view) {
   if (view === 'conns') renderConns();
   if (view === 'lan') renderLan();
   if (view === 'users') loadUsers();
-  if (view === 'me') loadMe();
+  if (view === 'me') {
+    loadMe();
+    loadMeConns();
+  }
   if (view === 'logs') {
     const box = $('#log');
     state.logAutoScroll = true;
