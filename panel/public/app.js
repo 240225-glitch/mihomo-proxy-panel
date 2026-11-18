@@ -197,6 +197,9 @@ function boot() {
   state.timers.conns = setInterval(loadConns, 2000);
   state.timers.meta = setInterval(() => loadMeta(false), 20000);
   state.timers.proxy = setInterval(loadProxyStatus, 5000);
+  state.timers.me = setInterval(() => {
+    if (state.view === 'me') loadMeConns();
+  }, 2500);
 
   loadConns();
   connectTraffic();
@@ -846,7 +849,6 @@ async function loadMe() {
 }
 
 async function loadMeConns() {
-  if (state.role === 'admin') return;
   try {
     const r = await fetch('/api/me/connections');
     if (!r.ok) return;
