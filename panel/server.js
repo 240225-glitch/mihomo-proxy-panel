@@ -336,6 +336,10 @@ async function syncMihomoUsers() {
   try {
     let text = fs.readFileSync(file, 'utf8');
     const block = usersBlock(loadUsers().users);
+
+    // 账号没变化就不重载，避免无谓断线 / 客户端重新弹认证
+    if (text.includes(block)) return true;
+
     if (/# >>> panel-users[\s\S]*?# <<< panel-users/.test(text)) {
       text = text.replace(/# >>> panel-users[\s\S]*?# <<< panel-users/, block);
     } else if (/^listeners:[\s\S]*?(?=^proxy-providers:)/m.test(text)) {
@@ -561,22 +565,30 @@ rules:
 `;
 }
 
-function speedTest() {
+function speedTest(maxMs = 7000, wantBytes = 25000000) {
   const proxy = config.proxy || '127.0.0.1:7890';
   const idx = proxy.lastIndexOf(':');
   const ph = proxy.slice(0, idx) || '127.0.0.1';
   const pp = Number(proxy.slice(idx + 1)) || 7890;
   const host = 'speed.cloudflare.com';
-  const apiPath = '/__down?bytes=25000000';
+  const apiPath = `/__down?bytes=${wantBytes}`;
 
   return new Promise((resolve) => {
     const started = Date.now();
     let bytes = 0;
     let done = false;
+    let secure = null;
+    let hardTimer = null;
 
     const finish = () => {
       if (done) return;
       done = true;
+      if (hardTimer) clearTimeout(hardTimer);
+      try {
+        if (secure) secure.destroy();
+      } catch {
+        /* ignore */
+      }
       const seconds = Math.max((Date.now() - started) / 1000, 0.2);
       resolve({
         mbps: Number(((bytes * 8) / seconds / 1e6).toFixed(1)),
@@ -584,18 +596,28 @@ function speedTest() {
         seconds: Number(seconds.toFixed(1))
       });
     };
+
     const fail = (msg) => {
       if (done) return;
       done = true;
+      if (hardTimer) clearTimeout(hardTimer);
+      try {
+        if (secure) secure.destroy();
+      } catch {
+        /* ignore */
+      }
       resolve({ error: msg });
     };
+
+    // 无论如何都要在 maxMs + 1.5s 内结束，避免坏节点把看护卡死
+    hardTimer = setTimeout(finish, maxMs + 1500);
 
     const connect = http.request({
       host: ph,
       port: pp,
       method: 'CONNECT',
       path: `${host}:443`,
-      timeout: 8000
+      timeout: Math.min(8000, maxMs)
     });
 
     connect.on('connect', (res, socket) => {
@@ -604,7 +626,9 @@ function speedTest() {
         return fail(`代理返回 ${res.statusCode}`);
       }
 
-      const secure = tls.connect({ socket, servername: host }, () => {
+      socket.setTimeout(maxMs + 1000, () => finish());
+
+      secure = tls.connect({ socket, servername: host }, () => {
         secure.write(
           `GET ${apiPath} HTTP/1.1\r\nHost: ${host}\r\nUser-Agent: panel-speedtest\r\nAccept: */*\r\nConnection: close\r\n\r\n`
         );
@@ -612,10 +636,7 @@ function speedTest() {
 
       secure.on('data', (chunk) => {
         bytes += chunk.length;
-        if (Date.now() - started > 7000) {
-          secure.destroy();
-          finish();
-        }
+        if (Date.now() - started > maxMs) finish();
       });
       secure.on('end', finish);
       secure.on('close', finish);
@@ -629,6 +650,76 @@ function speedTest() {
     connect.on('error', (e) => fail(e.message));
     connect.end();
   });
+}
+
+/* ------------------------------------------------------- 节点可用性看护 */
+
+let watch = { bad: 0, busy: false };
+
+async function pickWorkingNode() {
+  const mainBefore = await coreRequest(null, 'GET', '/proxies/MAIN', null, 5000).catch(() => null);
+  let original = 'AUTO';
+  try {
+    original = JSON.parse(mainBefore.body.toString('utf8')).now || 'AUTO';
+  } catch {
+    /* ignore */
+  }
+
+  const provRes = await coreRequest(null, 'GET', '/providers/proxies/free', null, 8000);
+  const prov = JSON.parse(provRes.body.toString('utf8'));
+  const last = (p) => {
+    const h = p.history || [];
+    const l = h[h.length - 1];
+    return l ? l.delay : 0;
+  };
+
+  const cands = prov.proxies
+    .filter((p) => last(p) > 0)
+    .sort((a, b) => last(a) - last(b))
+    .slice(0, 8);
+
+  // 先切到 MANUAL，测试才会走候选节点
+  await coreRequest(null, 'PUT', '/proxies/MAIN', JSON.stringify({ name: 'MANUAL' }), 5000);
+
+  const deadline = Date.now() + 45000;
+  for (const n of cands) {
+    if (Date.now() > deadline) break;
+    await coreRequest(null, 'PUT', '/proxies/MANUAL', JSON.stringify({ name: n.name }), 5000);
+    await sleep(300);
+    const r = await speedTest(3000, 1000000);
+    if (!r.error && r.mb >= 0.3) {
+      console.log(`[watchdog] 切换到 ${n.name}（${r.mbps} Mbps）`);
+      return { node: n.name, mbps: r.mbps };
+    }
+  }
+
+  // 都不行就还原
+  await coreRequest(null, 'PUT', '/proxies/MAIN', JSON.stringify({ name: original }), 5000).catch(() => {});
+  return { node: null, mbps: 0 };
+}
+
+async function watchdog() {
+  if (watch.busy) return;
+  watch.busy = true;
+  try {
+    if (!(await coreUp())) return;
+
+    const r = await speedTest(5000, 2000000);
+    if (!r.error && r.mbps >= 2) {
+      watch.bad = 0;
+      return;
+    }
+
+    watch.bad += 1;
+    console.log(`[watchdog] 当前节点慢：${r.error || r.mbps + ' Mbps'}（${watch.bad}/3）`);
+    if (watch.bad < 3) return;
+
+    watch.bad = 0;
+    const picked = await pickWorkingNode();
+    if (picked.node) console.log(`[watchdog] 已恢复：${picked.node}`);
+  } finally {
+    watch.busy = false;
+  }
 }
 
 /* -------------------------------------------------------------- exit lookup */
@@ -962,6 +1053,12 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, await stopProxy());
   }
 
+  if (pathname === '/api/proxy/recover' && req.method === 'POST') {
+    if (!isAdmin) return needAdmin();
+    const picked = await pickWorkingNode();
+    return send(res, 200, { ok: !!picked.node, node: picked.node, mbps: picked.mbps });
+  }
+
   // ---------- 账号管理 ----------
   if (pathname === '/api/users' && req.method === 'GET') {
     if (!isAdmin) return needAdmin();
@@ -1163,6 +1260,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  内核     ${config.core}`);
   console.log(`  代理入口 ${lan.lanProxyUrl}（需子账号）`);
   console.log('');
+
+  // 每 2 分钟检查一次当前节点，连续 3 次低于 2 Mbps 就自动换节点
+  setTimeout(watchdog, 45000);
+  setInterval(watchdog, 120000);
 });
 
 process.on('SIGINT', () => {

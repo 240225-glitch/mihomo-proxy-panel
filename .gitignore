@@ -7,6 +7,8 @@ panel/.lan-ok
 # mihomo 运行时文件（config.yaml 会被面板写入账号密码）
 mihomo/config.yaml
 mihomo/config.yaml.bak
+mihomo/config.yaml.bak2
+mihomo/config.yaml.*
 mihomo/free.yaml
 mihomo/cache.db
 mihomo/*.exe

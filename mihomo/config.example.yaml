@@ -24,9 +24,9 @@ proxy-providers:
     interval: 3600
     health-check:
       enable: true
-      url: https://www.gstatic.com/generate_204
-      interval: 180
-      timeout: 4000
+      url: https://speed.cloudflare.com/__down?bytes=30000
+      interval: 600
+      timeout: 3000
 
 proxy-groups:
   - name: MAIN
@@ -36,18 +36,18 @@ proxy-groups:
   - name: AUTO
     type: url-test
     use: [free]
-    url: https://www.gstatic.com/generate_204
-    interval: 180
-    timeout: 4000
+    url: https://speed.cloudflare.com/__down?bytes=30000
+    interval: 600
+    timeout: 3000
     tolerance: 50
 
   - name: TH
     type: url-test
     use: [free]
     filter: "(?i)(-TH|TH-|泰国|曼谷|Bangkok)"
-    url: https://www.gstatic.com/generate_204
-    interval: 180
-    timeout: 4000
+    url: https://speed.cloudflare.com/__down?bytes=30000
+    interval: 600
+    timeout: 3000
     tolerance: 50
 
   # 控制台里手动点选的节点会进这个分组
